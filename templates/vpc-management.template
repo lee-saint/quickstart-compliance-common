@@ -98,8 +98,32 @@ Parameters:
     Description: Route Table ID for Prod VPC Private
     Type: String
     Default: ''
+  pRouteTableProdPrivateB:
+    Description: Route Table ID for Prod VPC Private B
+    Type: String
+    Default: ''
   pRouteTableProdPublic:
     Description: Route Table ID for Prod VPC Public
+    Type: String
+    Default: ''
+  pDevelopmentVPC:
+    Description: Development VPC to peer with (optional)
+    Type: String
+    Default: ''
+  pDevelopmentCIDR:
+    Description: CIDR of Development VPC
+    Type: String
+    Default: ''
+  pRouteTableDevPrivate:
+    Description: Route Table ID for Dev VPC Private
+    Type: String
+    Default: ''
+  pRouteTableDevPrivateB:
+    Description: Route Table ID for Dev VPC Private B
+    Type: String
+    Default: ''
+  pRouteTableDevPublic:
+    Description: Route Table ID for Dev VPC Public
     Type: String
     Default: ''
   pRegionAZ1Name:
@@ -391,6 +415,12 @@ Resources:
     Properties:
       InstanceType: !Ref pBastionInstanceType
       KeyName: !Ref pEC2KeyPairBastion
+#      BlockDeviceMappings:
+#        - DeviceName: /dev/sdh
+#          Ebs:
+#            VolumeSize: 5
+#            VolumeType: gp2
+#            Encrypted: true
       Tags:
       - Key: Name
         Value: Bastion Server
@@ -518,6 +548,13 @@ Resources:
       RouteTableId: !Ref pRouteTableProdPrivate
       VpcPeeringConnectionId: !Ref rPeeringConnectionProduction
       DestinationCidrBlock: !Ref pManagementCIDR
+  rRouteProdMgmtB:
+    Condition: cCreatePeeringProduction
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref pRouteTableProdPrivateB
+      VpcPeeringConnectionId: !Ref rPeeringConnectionProduction
+      DestinationCidrBlock: !Ref pManagementCIDR
   rRouteProdMgmtPublic:
     Condition: cCreatePeeringProduction
     Type: AWS::EC2::Route
@@ -532,6 +569,52 @@ Resources:
       RouteTableId: !Ref rRouteTableMgmtDMZ
       VpcPeeringConnectionId: !Ref rPeeringConnectionProduction
       DestinationCidrBlock: !Ref pProductionCIDR
+  rPeeringConnectionDevelopment:
+    Type: AWS::EC2::VPCPeeringConnection
+    Condition: cCreatePeeringProduction
+    Properties:
+      PeerVpcId: !Ref pDevelopmentVPC
+      VpcId: !Ref rVPCManagement
+      Tags:
+      - Key: Name
+        Value: vpc-peer-development-management
+      - Key: Environment
+        Value: !Ref pEnvironment
+  rRouteMgmtDevPrivate:
+    Condition: cCreatePeeringProduction
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rRouteTableMgmtPrivate
+      VpcPeeringConnectionId: !Ref rPeeringConnectionDevelopment
+      DestinationCidrBlock: !Ref pDevelopmentCIDR
+  rRouteDevMgmt:
+    Condition: cCreatePeeringProduction
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref pRouteTableDevPrivate
+      VpcPeeringConnectionId: !Ref rPeeringConnectionDevelopment
+      DestinationCidrBlock: !Ref pManagementCIDR
+  rRouteDevMgmtB:
+    Condition: cCreatePeeringProduction
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref pRouteTableDevPrivateB
+      VpcPeeringConnectionId: !Ref rPeeringConnectionDevelopment
+      DestinationCidrBlock: !Ref pManagementCIDR
+  rRouteDevMgmtPublic:
+    Condition: cCreatePeeringProduction
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref pRouteTableDevPublic
+      VpcPeeringConnectionId: !Ref rPeeringConnectionDevelopment
+      DestinationCidrBlock: !Ref pManagementCIDR
+  rRouteMgmtDevDMZ:
+    Condition: cCreatePeeringProduction
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rRouteTableMgmtDMZ
+      VpcPeeringConnectionId: !Ref rPeeringConnectionDevelopment
+      DestinationCidrBlock: !Ref pDevelopmentCIDR
   rManagementVpcFlowLogsServiceRole:
     Condition: cEnableFlowLogs
     Type: AWS::IAM::Role
